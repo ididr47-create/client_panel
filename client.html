@@ -17,26 +17,16 @@
     </div>
     <div class="container">
         <div class="summary-vertical-stack">
-            <div class="summary-box long-row">
-                <div class="label">My Total AWB</div>
-                <div id="sumTotal" class="value">0</div>
-            </div>
-            <div class="summary-box long-row">
-                <div class="label" style="margin-bottom: 5px;">Shipment Types</div>
-                <div class="type-container">
-                    <div class="type-item"><span id="sumCODCount">0</span><small>COD</small></div>
-                    <div class="divider"></div>
-                    <div class="type-item"><span id="sumPrepaidCount">0</span><small>PREPAID</small></div>
-                </div>
-            </div>
-            <div class="summary-box long-row">
-                <div class="label">COD Collection</div>
-                <div id="sumCODAmount" class="value" style="font-size: 28px;">₹0.00</div>
-            </div>
+            <div class="summary-box long-row"><div class="label">My Total AWB</div><div id="sumTotal" class="value">0</div></div>
+            <div class="summary-box long-row"><div class="label">Shipment Types</div><div class="type-container"><div class="type-item"><span id="sumCODCount">0</span><small>COD</small></div><div class="divider"></div><div class="type-item"><span id="sumPrepaidCount">0</span><small>PREPAID</small></div></div></div>
+            <div class="summary-box long-row"><div class="label">COD Collection</div><div id="sumCODAmount" class="value">₹0.00</div></div>
         </div>
         <div class="filters-section">
-            <div id="statusFilterContainer" class="filters"><button class="status-btn active" onclick="setStatus('ALL', this)">All</button></div>
-            <input type="text" id="search" placeholder="Search your AWB..." onkeyup="searchData()" class="search">
+            <div id="statusFilterContainer" class="filters"></div>
+            <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
+                <input type="text" id="search" placeholder="Search your AWB..." onkeyup="searchData()" class="search" style="flex: 1; margin: 0;">
+                <button id="sortBtn" onclick="toggleSort()" class="status-btn active" style="display: none; margin: 0; white-space: nowrap; width: auto; padding: 0 15px; height: 45px;">Sort ⇅</button>
+            </div>
         </div>
         <div id="list"></div>
     </div>
