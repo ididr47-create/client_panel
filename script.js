@@ -1,0 +1,185 @@
+// ⚠️ Apna Deploy kiya hua Web App URL yahan paste karein
+const API_URL = "https://script.google.com/macros/s/AKfycbwu8aY5XoT2IEkMU-j_mbJ6bvPFWyCnehEjvUp-LzULdT-odz-Ii3xrF9htVIHjfZ9EFA/exec";
+
+const GROUP_MAP = {
+    "READY_FOR_SHIP": "Pending Pickup", 
+    "READY_FOR_PICKUP": "Pending Pickup",
+    "READY_TO_SHIP": "Pending Pickup", 
+    "READY_TO_PICKUP": "Pending Pickup",
+    "RETURNED_TO_ORIGIN": "RTO",
+    "RETURNING_TO_ORIGIN": "RTO"
+};
+
+const ALL_STATUS_BUTTONS = ["Pending Pickup", "OUT FOR DELIVERY", "DELIVERED", "RTO", "LOST", "CANCELLED", "SHIPPED"];
+let ALL_DATA = [], VIEW_DATA = [], PARTY_SET = new Set();
+let F_STATUS = "ALL", F_PIN = "ALL";
+
+// Helper Function: Date se extra time hatane ke liye
+function formatDate(dateStr) {
+    if (!dateStr || dateStr === "") return "";
+    return dateStr.toString().split('T')[0];
+}
+
+document.addEventListener("DOMContentLoaded", init);
+
+async function init() {
+    const role = localStorage.getItem("role"), savedPin = localStorage.getItem("pin"), loader = document.getElementById("loader");
+    if(!role || !savedPin) { window.location.href = "index.html"; return; }
+
+    try {
+        const res = await fetch(`${API_URL}?pin=${encodeURIComponent(savedPin)}`);
+        const rows = await res.json();
+        
+        if (!rows || rows.length === 0) {
+            if(loader) loader.style.display = "none";
+            document.getElementById("list").innerHTML = "<p style='text-align:center; padding:20px;'>No data found.</p>";
+            return;
+        }
+
+        rows.reverse(); 
+
+        ALL_DATA = rows.map(r => {
+            let raw = (r[5] || "PENDING").toString().trim().toUpperCase().replace(/\s+/g, '_');
+            return {
+                awb: (r[1] || "").toString().trim(),
+                pickupName: (r[2] || "Unknown").toString().trim(),
+                consignee: (r[3] || "No Name").toString().trim(),
+                city: (r[4] || "No City").toString().trim(),
+                date: formatDate(r[0]), // ✅ Fixed Date Format
+                delDate: formatDate(r[6]), // ✅ Fixed Date Format
+                rawStatus: raw, 
+                displayGroup: GROUP_MAP[raw] || raw.replace(/_/g, " "), 
+                status: normalizeStatus(raw),
+                payment: (r[7] || "").toString().toUpperCase(),
+                cod: parseFloat((r[8] || "0").toString().replace(/,/g, "")) || 0,
+                pin: (r[19] || "").toString().trim(),
+                phone: (r[20] || "").toString().replace(/[^0-9]/g, "")
+            };
+        });
+
+        if(role === "admin") {
+            ALL_DATA.forEach(x => { if(x.pickupName && x.pin) PARTY_SET.add(`${x.pickupName} - ${x.pin}`); });
+            buildDropdown();
+        } else {
+            const title = document.querySelector(".header h1") || document.getElementById("clientTitle");
+            if(title && ALL_DATA.length > 0) title.innerText = ALL_DATA[0].pickupName;
+        }
+
+        buildStatusButtons(); 
+        applyFilters(); 
+        updateSyncTime();
+        if(loader) loader.style.display = "none";
+    } catch (e) { 
+        console.error("Fetch Error:", e);
+        if(loader) loader.style.display = "none";
+    }
+}
+
+function normalizeStatus(s) {
+    if(s.includes("DELIVERED")) return "delivered";
+    if(s.includes("RETURN")) return "rto";
+    return "in_transit";
+}
+
+function render() {
+    const list = document.getElementById("list"); if(!list) return;
+    let html = '';
+    if (VIEW_DATA.length === 0) { list.innerHTML = `<p style='text-align:center; padding:40px;'>No results found.</p>`; return; }
+
+    VIEW_DATA.forEach(r => {
+        const sClass = r.status;
+        const trackingLink = `https://www.delhivery.com/track-v2/package/${r.awb}`;
+        const waLink = `https://api.whatsapp.com/send?phone=91${r.phone}&text=${encodeURIComponent("IDR Solutions Tracking:\nAWB: " + r.awb + "\nStatus: " + r.displayGroup + "\nLink: " + trackingLink)}`;
+        const smsLink = `sms:+91${r.phone}?body=${encodeURIComponent("IDR Solutions: Shipment AWB " + r.awb + " is " + r.displayGroup + ". Track: " + trackingLink)}`;
+        
+        // Date Alignment Logic
+        const rightSideDate = (r.displayGroup === "DELIVERED" || r.displayGroup === "RTO") ? `📅 ${r.delDate}` : "";
+
+        html += `
+            <div class="shipment-card status-${sClass}" style="background:#fff; margin-bottom:15px; padding:15px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-weight:900;">AWB ${r.awb}</div>
+                    <span style="font-size:10px; padding:2px 6px; background:#f1f5f9; border-radius:4px; font-weight:800;">${r.payment}</span>
+                </div>
+                <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <div style="font-weight:700; color:#1e293b;">${r.consignee}</div>
+                        <div style="font-size:12px; color:#64748b;">${r.city} | <span style="color:#38b2ac;">Pickup Date: ${r.date}</span></div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700; font-size:13px; color:${r.displayGroup === 'RTO' ? '#f56565' : '#38b2ac'}">${r.displayGroup}</div>
+                        <div style="font-size:11px; color:#64748b; margin-top:2px;">${rightSideDate}</div>
+                    </div>
+                </div>
+                <div style="margin-top:10px; font-weight:800; color:#38b2ac;">₹${r.cod.toFixed(0)}</div>
+                <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                    <a href="${trackingLink}" target="_blank" style="text-align:center; padding:8px; background:#38b2ac; color:#fff; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">Track</a>
+                    <a href="${waLink}" target="_blank" style="text-align:center; padding:8px; background:#25D366; color:#fff; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">WhatsApp</a>
+                    <a href="${smsLink}" style="text-align:center; padding:8px; background:#add8e6; color:#000; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">SMS</a>
+                </div>
+            </div>`;
+    });
+    list.innerHTML = html;
+}
+
+// ✅ Scroll Function Wapas Add Kiya gaya hai
+window.onscroll = function() {
+    const b = document.getElementById("scrollTopBtn");
+    if (b) {
+        if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) b.style.display = "block";
+        else b.style.display = "none";
+    }
+};
+
+window.topFunction = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
+function applyFilters() {
+    const q = document.getElementById("search")?.value.toLowerCase() || "";
+    VIEW_DATA = ALL_DATA.filter(r => {
+        const ms = F_STATUS === "ALL" || r.displayGroup.toUpperCase() === F_STATUS.toUpperCase();
+        const mp = F_PIN === "ALL" || r.pin === F_PIN;
+        const msc = r.awb.toLowerCase().includes(q) || r.city.toLowerCase().includes(q) || r.consignee.toLowerCase().includes(q);
+        return ms && mp && msc;
+    });
+    render();
+    if(typeof updateSummary === 'function') updateSummary();
+}
+
+function updateSummary() {
+    let amt = 0, c = 0, p = 0;
+    VIEW_DATA.forEach(r => { if(r.payment === "COD") { c++; amt += r.cod; } else { p++; } });
+    if(document.getElementById("sumTotal")) document.getElementById("sumTotal").innerText = VIEW_DATA.length;
+    if(document.getElementById("sumCODCount")) document.getElementById("sumCODCount").innerText = c;
+    if(document.getElementById("sumPrepaidCount")) document.getElementById("sumPrepaidCount").innerText = p;
+    if(document.getElementById("sumCODAmount")) document.getElementById("sumCODAmount").innerText = "₹" + amt.toLocaleString('en-IN');
+}
+
+function buildStatusButtons() {
+    const c = document.getElementById("statusFilterContainer");
+    if (!c) return;
+    c.innerHTML = '<button class="status-btn active" onclick="setStatus(\'ALL\', this)">All</button>';
+    ALL_STATUS_BUTTONS.forEach(g => {
+        const b = document.createElement("button");
+        b.className = "status-btn"; b.innerText = g;
+        b.onclick = function() { setStatus(g, this); };
+        c.appendChild(b);
+    });
+}
+
+function buildDropdown() {
+    const s = document.getElementById("partySelect");
+    if(!s) return;
+    s.innerHTML = '<option value="ALL">All Registered Parties</option>';
+    Array.from(PARTY_SET).sort().forEach(p => {
+        const o = document.createElement("option");
+        o.value = p.split(" - ").pop();
+        o.textContent = p;
+        s.appendChild(o);
+    });
+}
+
+window.setStatus = (g, b) => { F_STATUS = g; b.parentElement.querySelectorAll(".status-btn").forEach(x => x.classList.remove("active")); b.classList.add("active"); applyFilters(); };
+window.setParty = (v) => { F_PIN = v; applyFilters(); };
+window.searchData = () => applyFilters();
+window.logout = () => { localStorage.clear(); window.location.href = "index.html"; };
+window.updateSyncTime = () => { if(document.getElementById("syncTime")) document.getElementById("syncTime").innerText = "Updated: " + new Date().toLocaleTimeString(); };

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin Dashboard | IDR Solutions</title>
+    
+    <script>
+        (function() {
+            const role = localStorage.getItem("role");
+            if (role !== "admin") {
+                alert("Unauthorized Access! Please login first.");
+                window.location.href = "index.html";
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="loader"><div class="spinner"></div></div>
+    <div class="header">
+        <div class="logo-text"><span class="logo-teal">IDR</span> <span class="logo-coral">Solutions</span></div>
+        <div id="syncTime">Last Updated: Syncing...</div>
+        <button class="logout" onclick="logout()">Logout</button>
+    </div>
+    <div class="container">
+        <div class="summary-vertical-stack">
+            <div class="summary-box long-row">
+                <div class="label">Total System AWB</div>
+                <div id="sumTotal" class="value">0</div>
+            </div>
+            <div class="summary-box long-row">
+                <div class="label" style="margin-bottom: 5px;">Shipment Types</div>
+                <div class="type-container">
+                    <div class="type-item"><span id="sumCODCount">0</span><small>COD</small></div>
+                    <div class="divider"></div>
+                    <div class="type-item"><span id="sumPrepaidCount">0</span><small>PREPAID</small></div>
+                </div>
+            </div>
+            <div class="summary-box long-row">
+                <div class="label">Total COD Collection</div>
+                <div id="sumCODAmount" class="value" style="font-size: 28px;">₹0.00</div>
+            </div>
+        </div>
+        <div class="filters-section">
+            <select id="partySelect" onchange="setParty(this.value)" class="search"><option value="ALL">All Registered Parties</option></select>
+            <div id="statusFilterContainer" class="filters"><button class="status-btn active" onclick="setStatus('ALL', this)">All</button></div>
+            <input type="text" id="search" placeholder="Search AWB or Name..." onkeyup="searchData()" class="search">
+        </div>
+        <div id="list"></div>
+    </div>
+    <button onclick="topFunction()" id="scrollTopBtn">↑</button>
+    <script src="script.js"></script>
+</body>
+</html>
