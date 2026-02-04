@@ -14,24 +14,12 @@ const ALL_STATUS_BUTTONS = ["Pending Pickup", "OUT FOR DELIVERY", "DELIVERED", "
 let ALL_DATA = [], VIEW_DATA = [], PARTY_SET = new Set();
 let F_STATUS = "ALL", F_PIN = "ALL";
 
-// ✅ FIXED: Helper Function - Sheet ki date ko waisa hi rakhega jaisa wo hai
+// ✅ Raw Text Handling: No Date objects to avoid timezone shifts
 function formatDate(dateStr) {
     if (!dateStr || dateStr === "") return "";
-    
-    // Agar data Google Sheet se Date object bankar aa raha hai toh use DD/MM/YYYY banayein
-    if (dateStr instanceof Date || !isNaN(Date.parse(dateStr)) && typeof dateStr !== 'number') {
-        const d = new Date(dateStr);
-        if (!isNaN(d.getTime())) {
-            const day = ("0" + d.getDate()).slice(-2);
-            const month = ("0" + (d.getMonth() + 1)).slice(-2);
-            const year = d.getFullYear();
-            // Agar year 1970 aa raha hai toh matlab string parsing fail hui, waisa hi return karein
-            if (year > 1970) return `${day}/${month}/${year}`;
-        }
-    }
-    
-    // Agar simple text hai (02/04/2026), toh bina chhede waisa hi return karein
-    return dateStr.toString().split('T')[0];
+    let s = dateStr.toString().trim();
+    if (s.includes('T')) return s.split('T')[0].split('-').reverse().join('/');
+    return s;
 }
 
 document.addEventListener("DOMContentLoaded", init);
@@ -50,7 +38,25 @@ async function init() {
             return;
         }
 
-        rows.reverse(); 
+        // ✅ LATEST TO OLD SORTING: Sirf Delivered shipments ke liye
+        rows.sort((a, b) => {
+            let statusA = (a[5] || "").toString().toUpperCase();
+            let statusB = (b[5] || "").toString().toUpperCase();
+
+            if (statusA === "DELIVERED" && statusB === "DELIVERED") {
+                // Date string (DD/MM/YYYY) ko compare-able Number (YYYYMMDD) mein badlein
+                const toNum = (dStr) => {
+                    if (!dStr || !dStr.includes('/')) return 0;
+                    const [d, m, y] = dStr.split('/');
+                    return parseInt(y + m.padStart(2, '0') + d.padStart(2, '0'));
+                };
+                return toNum(b[6]) - toNum(a[6]); // Higher number (Today) comes first
+            }
+            // Delivered ko hamesha list mein priority dein
+            if (statusA === "DELIVERED" && statusB !== "DELIVERED") return -1;
+            if (statusA !== "DELIVERED" && statusB === "DELIVERED") return 1;
+            return 0;
+        });
 
         ALL_DATA = rows.map(r => {
             let raw = (r[5] || "PENDING").toString().trim().toUpperCase().replace(/\s+/g, '_');
@@ -59,8 +65,8 @@ async function init() {
                 pickupName: (r[2] || "Unknown").toString().trim(),
                 consignee: (r[3] || "No Name").toString().trim(),
                 city: (r[4] || "No City").toString().trim(),
-                date: formatDate(r[0]), // ✅ Fixed Pickup Date
-                delDate: formatDate(r[6]), // ✅ Fixed Delivered Date
+                date: formatDate(r[0]), 
+                delDate: formatDate(r[6]), 
                 rawStatus: raw, 
                 displayGroup: GROUP_MAP[raw] || raw.replace(/_/g, " "), 
                 status: normalizeStatus(raw),
@@ -106,7 +112,6 @@ function render() {
         const waLink = `https://api.whatsapp.com/send?phone=91${r.phone}&text=${encodeURIComponent("IDR Solutions Tracking:\nAWB: " + r.awb + "\nStatus: " + r.displayGroup + "\nLink: " + trackingLink)}`;
         const smsLink = `sms:+91${r.phone}?body=${encodeURIComponent("IDR Solutions: Shipment AWB " + r.awb + " is " + r.displayGroup + ". Track: " + trackingLink)}`;
         
-        // Date Alignment Logic: Status DELIVERED ya RTO hone par hi Delivered date dikhegi
         const rightSideDate = (r.displayGroup === "DELIVERED" || r.displayGroup === "RTO") ? `📅 ${r.delDate}` : "";
 
         html += `
@@ -136,7 +141,6 @@ function render() {
     list.innerHTML = html;
 }
 
-// Scroll Function
 window.onscroll = function() {
     const b = document.getElementById("scrollTopBtn");
     if (b) {
