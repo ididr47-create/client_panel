@@ -14,9 +14,23 @@ const ALL_STATUS_BUTTONS = ["Pending Pickup", "OUT FOR DELIVERY", "DELIVERED", "
 let ALL_DATA = [], VIEW_DATA = [], PARTY_SET = new Set();
 let F_STATUS = "ALL", F_PIN = "ALL";
 
-// Helper Function: Date se extra time hatane ke liye
+// ✅ FIXED: Helper Function - Sheet ki date ko waisa hi rakhega jaisa wo hai
 function formatDate(dateStr) {
     if (!dateStr || dateStr === "") return "";
+    
+    // Agar data Google Sheet se Date object bankar aa raha hai toh use DD/MM/YYYY banayein
+    if (dateStr instanceof Date || !isNaN(Date.parse(dateStr)) && typeof dateStr !== 'number') {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+            const day = ("0" + d.getDate()).slice(-2);
+            const month = ("0" + (d.getMonth() + 1)).slice(-2);
+            const year = d.getFullYear();
+            // Agar year 1970 aa raha hai toh matlab string parsing fail hui, waisa hi return karein
+            if (year > 1970) return `${day}/${month}/${year}`;
+        }
+    }
+    
+    // Agar simple text hai (02/04/2026), toh bina chhede waisa hi return karein
     return dateStr.toString().split('T')[0];
 }
 
@@ -45,8 +59,8 @@ async function init() {
                 pickupName: (r[2] || "Unknown").toString().trim(),
                 consignee: (r[3] || "No Name").toString().trim(),
                 city: (r[4] || "No City").toString().trim(),
-                date: formatDate(r[0]), // ✅ Fixed Date Format
-                delDate: formatDate(r[6]), // ✅ Fixed Date Format
+                date: formatDate(r[0]), // ✅ Fixed Pickup Date
+                delDate: formatDate(r[6]), // ✅ Fixed Delivered Date
                 rawStatus: raw, 
                 displayGroup: GROUP_MAP[raw] || raw.replace(/_/g, " "), 
                 status: normalizeStatus(raw),
@@ -92,7 +106,7 @@ function render() {
         const waLink = `https://api.whatsapp.com/send?phone=91${r.phone}&text=${encodeURIComponent("IDR Solutions Tracking:\nAWB: " + r.awb + "\nStatus: " + r.displayGroup + "\nLink: " + trackingLink)}`;
         const smsLink = `sms:+91${r.phone}?body=${encodeURIComponent("IDR Solutions: Shipment AWB " + r.awb + " is " + r.displayGroup + ". Track: " + trackingLink)}`;
         
-        // Date Alignment Logic
+        // Date Alignment Logic: Status DELIVERED ya RTO hone par hi Delivered date dikhegi
         const rightSideDate = (r.displayGroup === "DELIVERED" || r.displayGroup === "RTO") ? `📅 ${r.delDate}` : "";
 
         html += `
@@ -122,7 +136,7 @@ function render() {
     list.innerHTML = html;
 }
 
-// ✅ Scroll Function Wapas Add Kiya gaya hai
+// Scroll Function
 window.onscroll = function() {
     const b = document.getElementById("scrollTopBtn");
     if (b) {
