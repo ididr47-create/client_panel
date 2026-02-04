@@ -2,19 +2,15 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbwu8aY5XoT2IEkMU-j_mbJ6bvPFWyCnehEjvUp-LzULdT-odz-Ii3xrF9htVIHjfZ9EFA/exec";
 
 const GROUP_MAP = {
-    "READY_FOR_SHIP": "Pending Pickup", 
-    "READY_FOR_PICKUP": "Pending Pickup",
-    "READY_TO_SHIP": "Pending Pickup", 
-    "READY_TO_PICKUP": "Pending Pickup",
-    "RETURNED_TO_ORIGIN": "RTO",
-    "RETURNING_TO_ORIGIN": "RTO"
+    "READY_FOR_SHIP": "Pending Pickup", "READY_FOR_PICKUP": "Pending Pickup",
+    "READY_TO_SHIP": "Pending Pickup", "READY_TO_PICKUP": "Pending Pickup",
+    "RETURNED_TO_ORIGIN": "RTO", "RETURNING_TO_ORIGIN": "RTO"
 };
 
 const ALL_STATUS_BUTTONS = ["Pending Pickup", "OUT FOR DELIVERY", "DELIVERED", "RTO", "LOST", "CANCELLED", "SHIPPED"];
 let ALL_DATA = [], VIEW_DATA = [], PARTY_SET = new Set();
-let F_STATUS = "ALL", F_PIN = "ALL";
+let F_STATUS = "ALL", F_PIN = "ALL", isNewestFirst = true;
 
-// ✅ Raw Text Handling: No Date objects to avoid timezone shifts
 function formatDate(dateStr) {
     if (!dateStr || dateStr === "") return "";
     let s = dateStr.toString().trim();
@@ -31,32 +27,11 @@ async function init() {
     try {
         const res = await fetch(`${API_URL}?pin=${encodeURIComponent(savedPin)}`);
         const rows = await res.json();
-        
         if (!rows || rows.length === 0) {
             if(loader) loader.style.display = "none";
-            document.getElementById("list").innerHTML = "<p style='text-align:center; padding:20px;'>No data found.</p>";
+            document.getElementById("list").innerHTML = "<p style='text-align:center;'>No data found.</p>";
             return;
         }
-
-        // ✅ LATEST TO OLD SORTING: Sirf Delivered shipments ke liye
-        rows.sort((a, b) => {
-            let statusA = (a[5] || "").toString().toUpperCase();
-            let statusB = (b[5] || "").toString().toUpperCase();
-
-            if (statusA === "DELIVERED" && statusB === "DELIVERED") {
-                // Date string (DD/MM/YYYY) ko compare-able Number (YYYYMMDD) mein badlein
-                const toNum = (dStr) => {
-                    if (!dStr || !dStr.includes('/')) return 0;
-                    const [d, m, y] = dStr.split('/');
-                    return parseInt(y + m.padStart(2, '0') + d.padStart(2, '0'));
-                };
-                return toNum(b[6]) - toNum(a[6]); // Higher number (Today) comes first
-            }
-            // Delivered ko hamesha list mein priority dein
-            if (statusA === "DELIVERED" && statusB !== "DELIVERED") return -1;
-            if (statusA !== "DELIVERED" && statusB === "DELIVERED") return 1;
-            return 0;
-        });
 
         ALL_DATA = rows.map(r => {
             let raw = (r[5] || "PENDING").toString().trim().toUpperCase().replace(/\s+/g, '_');
@@ -77,6 +52,7 @@ async function init() {
             };
         });
 
+        sortDataLogic();
         if(role === "admin") {
             ALL_DATA.forEach(x => { if(x.pickupName && x.pin) PARTY_SET.add(`${x.pickupName} - ${x.pin}`); });
             buildDropdown();
@@ -84,15 +60,30 @@ async function init() {
             const title = document.querySelector(".header h1") || document.getElementById("clientTitle");
             if(title && ALL_DATA.length > 0) title.innerText = ALL_DATA[0].pickupName;
         }
-
         buildStatusButtons(); 
         applyFilters(); 
-        updateSyncTime();
         if(loader) loader.style.display = "none";
-    } catch (e) { 
-        console.error("Fetch Error:", e);
-        if(loader) loader.style.display = "none";
-    }
+    } catch (e) { console.error(e); if(loader) loader.style.display = "none"; }
+}
+
+window.toggleSort = () => {
+    isNewestFirst = !isNewestFirst;
+    const btn = document.getElementById("sortBtn");
+    if(btn) btn.innerText = isNewestFirst ? "Sort: Newest First ⇅" : "Sort: Oldest First ⇅";
+    sortDataLogic();
+    applyFilters();
+};
+
+function sortDataLogic() {
+    ALL_DATA.sort((a, b) => {
+        const toNum = (dStr) => {
+            if (!dStr || !dStr.includes('/')) return 0;
+            const [d, m, y] = dStr.split('/');
+            return parseInt(y + m.padStart(2, '0') + d.padStart(2, '0'));
+        };
+        let valA = toNum(a.delDate), valB = toNum(b.delDate);
+        return isNewestFirst ? (valB - valA) : (valA - valB);
+    });
 }
 
 function normalizeStatus(s) {
@@ -109,50 +100,43 @@ function render() {
     VIEW_DATA.forEach(r => {
         const sClass = r.status;
         const trackingLink = `https://www.delhivery.com/track-v2/package/${r.awb}`;
-        const waLink = `https://api.whatsapp.com/send?phone=91${r.phone}&text=${encodeURIComponent("IDR Solutions Tracking:\nAWB: " + r.awb + "\nStatus: " + r.displayGroup + "\nLink: " + trackingLink)}`;
-        const smsLink = `sms:+91${r.phone}?body=${encodeURIComponent("IDR Solutions: Shipment AWB " + r.awb + " is " + r.displayGroup + ". Track: " + trackingLink)}`;
-        
         const rightSideDate = (r.displayGroup === "DELIVERED" || r.displayGroup === "RTO") ? `📅 ${r.delDate}` : "";
-
         html += `
             <div class="shipment-card status-${sClass}" style="background:#fff; margin-bottom:15px; padding:15px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between;">
                     <div style="font-weight:900;">AWB ${r.awb}</div>
                     <span style="font-size:10px; padding:2px 6px; background:#f1f5f9; border-radius:4px; font-weight:800;">${r.payment}</span>
                 </div>
-                <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:flex-start;">
+                <div style="margin-top:10px; display:flex; justify-content:space-between;">
                     <div>
-                        <div style="font-weight:700; color:#1e293b;">${r.consignee}</div>
-                        <div style="font-size:12px; color:#64748b;">${r.city} | <span style="color:#38b2ac;">Pickup Date: ${r.date}</span></div>
+                        <div style="font-weight:700;">${r.consignee}</div>
+                        <div style="font-size:12px;">${r.city} | Pickup: ${r.date}</div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-weight:700; font-size:13px; color:${r.displayGroup === 'RTO' ? '#f56565' : '#38b2ac'}">${r.displayGroup}</div>
-                        <div style="font-size:11px; color:#64748b; margin-top:2px;">${rightSideDate}</div>
+                        <div style="font-weight:700; color:#38b2ac;">${r.displayGroup}</div>
+                        <div style="font-size:11px;">${rightSideDate}</div>
                     </div>
                 </div>
                 <div style="margin-top:10px; font-weight:800; color:#38b2ac;">₹${r.cod.toFixed(0)}</div>
                 <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
                     <a href="${trackingLink}" target="_blank" style="text-align:center; padding:8px; background:#38b2ac; color:#fff; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">Track</a>
-                    <a href="${waLink}" target="_blank" style="text-align:center; padding:8px; background:#25D366; color:#fff; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">WhatsApp</a>
-                    <a href="${smsLink}" style="text-align:center; padding:8px; background:#add8e6; color:#000; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">SMS</a>
+                    <a href="https://api.whatsapp.com/send?phone=91${r.phone}" target="_blank" style="text-align:center; padding:8px; background:#25D366; color:#fff; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">WhatsApp</a>
+                    <a href="sms:+91${r.phone}" style="text-align:center; padding:8px; background:#add8e6; color:#000; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">SMS</a>
                 </div>
             </div>`;
     });
     list.innerHTML = html;
 }
 
-window.onscroll = function() {
-    const b = document.getElementById("scrollTopBtn");
-    if (b) {
-        if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) b.style.display = "block";
-        else b.style.display = "none";
-    }
-};
-
-window.topFunction = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
-
 function applyFilters() {
     const q = document.getElementById("search")?.value.toLowerCase() || "";
+    
+    // ✅ Logic: Sort button sirf tabhi dikhega jab Status "DELIVERED" ho
+    const sortBtn = document.getElementById("sortBtn");
+    if(sortBtn) {
+        sortBtn.style.display = (F_STATUS.toUpperCase() === "DELIVERED") ? "block" : "none";
+    }
+
     VIEW_DATA = ALL_DATA.filter(r => {
         const ms = F_STATUS === "ALL" || r.displayGroup.toUpperCase() === F_STATUS.toUpperCase();
         const mp = F_PIN === "ALL" || r.pin === F_PIN;
@@ -173,26 +157,19 @@ function updateSummary() {
 }
 
 function buildStatusButtons() {
-    const c = document.getElementById("statusFilterContainer");
-    if (!c) return;
+    const c = document.getElementById("statusFilterContainer"); if (!c) return;
     c.innerHTML = '<button class="status-btn active" onclick="setStatus(\'ALL\', this)">All</button>';
     ALL_STATUS_BUTTONS.forEach(g => {
-        const b = document.createElement("button");
-        b.className = "status-btn"; b.innerText = g;
-        b.onclick = function() { setStatus(g, this); };
-        c.appendChild(b);
+        const b = document.createElement("button"); b.className = "status-btn"; b.innerText = g;
+        b.onclick = function() { setStatus(g, this); }; c.appendChild(b);
     });
 }
 
 function buildDropdown() {
-    const s = document.getElementById("partySelect");
-    if(!s) return;
+    const s = document.getElementById("partySelect"); if(!s) return;
     s.innerHTML = '<option value="ALL">All Registered Parties</option>';
     Array.from(PARTY_SET).sort().forEach(p => {
-        const o = document.createElement("option");
-        o.value = p.split(" - ").pop();
-        o.textContent = p;
-        s.appendChild(o);
+        const o = document.createElement("option"); o.value = p.split(" - ").pop(); o.textContent = p; s.appendChild(o);
     });
 }
 
@@ -200,4 +177,5 @@ window.setStatus = (g, b) => { F_STATUS = g; b.parentElement.querySelectorAll(".
 window.setParty = (v) => { F_PIN = v; applyFilters(); };
 window.searchData = () => applyFilters();
 window.logout = () => { localStorage.clear(); window.location.href = "index.html"; };
+window.topFunction = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
 window.updateSyncTime = () => { if(document.getElementById("syncTime")) document.getElementById("syncTime").innerText = "Updated: " + new Date().toLocaleTimeString(); };
