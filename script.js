@@ -153,29 +153,6 @@ function updateSummary() {
     if(document.getElementById("sumTotal")) document.getElementById("sumTotal").innerText = VIEW_DATA.length;
     if(document.getElementById("sumCODCount")) document.getElementById("sumCODCount").innerText = c;
     if(document.getElementById("sumPrepaidCount")) document.getElementById("sumPrepaidCount").innerText = p;
-    if(document.getElementById("sumCODAmount")) document.getElementById("sumCODAmount").innerText = "₹" + amt.toLocaleString('en-IN');
-}
-
-function buildStatusButtons() {
-    const c = document.getElementById("statusFilterContainer"); if (!c) return;
-    c.innerHTML = '<button class="status-btn active" onclick="setStatus(\'ALL\', this)">All</button>';
-    ALL_STATUS_BUTTONS.forEach(g => {
-        const b = document.createElement("button"); b.className = "status-btn"; b.innerText = g;
-        b.onclick = function() { setStatus(g, this); }; c.appendChild(b);
-    });
-}
-
-function buildDropdown() {
-    const s = document.getElementById("partySelect"); if(!s) return;
-    s.innerHTML = '<option value="ALL">All Registered Parties</option>';
-    Array.from(PARTY_SET).sort().forEach(p => {
-        const o = document.createElement("option"); o.value = p.split(" - ").pop(); o.textContent = p; s.appendChild(o);
-    });
-}
-
-window.setStatus = (g, b) => { F_STATUS = g; b.parentElement.querySelectorAll(".status-btn").forEach(x => x.classList.remove("active")); b.classList.add("active"); applyFilters(); };
-window.setParty = (v) => { F_PIN = v; applyFilters(); };
-window.searchData = () => applyFilters();
-window.logout = () => { localStorage.clear(); window.location.href = "index.html"; };
-window.topFunction = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    if(
 window.updateSyncTime = () => { if(document.getElementById("syncTime")) document.getElementById("syncTime").innerText = "Updated: " + new Date().toLocaleTimeString(); };
+
