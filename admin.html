@@ -4,38 +4,99 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Admin Dashboard | IDR Solutions</title>
+
+    <!-- SAFE ROLE CHECK (DOM READY) -->
     <script>
-        (function() {
+        document.addEventListener("DOMContentLoaded", function () {
             const role = localStorage.getItem("role");
-            if (role !== "admin") { window.location.href = "index.html"; }
-        })();
+            if (role !== "admin") {
+                window.location.href = "./index.html";
+            }
+        });
     </script>
-    <link rel="stylesheet" href="style.css">
+
+    <!-- CSS PATH FIX -->
+    <link rel="stylesheet" href="./style.css">
 </head>
+
 <body>
-    <div id="loader"><div class="spinner"></div></div>
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
     <div class="header">
-        <div class="logo-text"><span class="logo-teal">IDR</span> <span class="logo-coral">Solutions</span></div>
+        <div class="logo-text">
+            <span class="logo-teal">IDR</span>
+            <span class="logo-coral">Solutions</span>
+        </div>
         <div id="syncTime">Syncing...</div>
         <button class="logout" onclick="logout()">Logout</button>
     </div>
+
     <div class="container">
+
         <div class="summary-vertical-stack">
-            <div class="summary-box long-row"><div class="label">Total System AWB</div><div id="sumTotal" class="value">0</div></div>
-            <div class="summary-box long-row"><div class="label">Shipment Types</div><div class="type-container"><div class="type-item"><span id="sumCODCount">0</span><small>COD</small></div><div class="divider"></div><div class="type-item"><span id="sumPrepaidCount">0</span><small>PREPAID</small></div></div></div>
-            <div class="summary-box long-row"><div class="label">Total COD Collection</div><div id="sumCODAmount" class="value">₹0.00</div></div>
-        </div>
-        <div class="filters-section">
-            <select id="partySelect" onchange="setParty(this.value)" class="search"><option value="ALL">All Registered Parties</option></select>
-            <div id="statusFilterContainer" class="filters"></div>
-            <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
-                <input type="text" id="search" placeholder="Search AWB or Name..." onkeyup="searchData()" class="search" style="flex: 1; margin: 0;">
-                <button id="sortBtn" onclick="toggleSort()" class="status-btn active" style="display: none; margin: 0; white-space: nowrap; width: auto; padding: 0 15px; height: 45px;">Sort ⇅</button>
+            <div class="summary-box long-row">
+                <div class="label">Total System AWB</div>
+                <div id="sumTotal" class="value">0</div>
+            </div>
+
+            <div class="summary-box long-row">
+                <div class="label">Shipment Types</div>
+                <div class="type-container">
+                    <div class="type-item">
+                        <span id="sumCODCount">0</span>
+                        <small>COD</small>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="type-item">
+                        <span id="sumPrepaidCount">0</span>
+                        <small>PREPAID</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-box long-row">
+                <div class="label">Total COD Collection</div>
+                <div id="sumCODAmount" class="value">₹0.00</div>
             </div>
         </div>
+
+        <div class="filters-section">
+            <select id="partySelect" onchange="setParty(this.value)" class="search">
+                <option value="ALL">All Registered Parties</option>
+            </select>
+
+            <div id="statusFilterContainer" class="filters"></div>
+
+            <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
+                <input
+                    type="text"
+                    id="search"
+                    placeholder="Search AWB or Name..."
+                    onkeyup="searchData()"
+                    class="search"
+                    style="flex: 1; margin: 0;"
+                >
+
+                <!-- SORT BUTTON (VISIBLE BY DEFAULT – NO JS DEPENDENCY) -->
+                <button
+                    id="sortBtn"
+                    onclick="toggleSort()"
+                    class="status-btn active"
+                    style="margin: 0; white-space: nowrap; width: auto; padding: 0 15px; height: 45px;"
+                >
+                    Sort ⇅
+                </button>
+            </div>
+        </div>
+
         <div id="list"></div>
     </div>
+
     <button onclick="topFunction()" id="scrollTopBtn">↑</button>
-    <script src="script.js"></script>
+
+    <!-- JS PATH FIX -->
+    <script src="./script.js"></script>
 </body>
 </html>
