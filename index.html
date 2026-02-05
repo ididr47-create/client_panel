@@ -3,67 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <title>Login | IDR Solutions</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <style>
-        :root { --idr-teal: #38b2ac; --idr-coral: #f56565; }
-        body{ margin:0; height:100vh; display:flex; justify-content:center; align-items:center; background:#f0f4f8; font-family:'Inter', sans-serif; }
-        .card{ background:#fff; padding:40px; border-radius:24px; width:350px; box-shadow:0 20px 40px rgba(0,0,0,.1); text-align:center; }
-        .logo-text { font-size: 28px; font-weight: 900; margin-bottom: 10px; }
-        .logo-teal { color: var(--idr-teal); border-bottom: 3px solid var(--idr-teal); }
-        .logo-coral { color: var(--idr-coral); }
-        input{ width:100%; padding:15px; margin-top:20px; border-radius:12px; border:1px solid #d1d5db; box-sizing: border-box; font-size:16px; outline:none; }
-        button{ margin-top:25px; width:100%; padding:15px; border-radius:30px; border:none; background:var(--idr-teal); color:#fff; font-weight:700; cursor:pointer; font-size:16px; transition: 0.3s; }
-        button:hover { background: #319795; transform: translateY(-2px); }
-        #errMsg { color: var(--idr-coral); font-size: 14px; margin-top: 15px; display: none; font-weight: 600; }
+        :root {
+            --idr-teal: #38b2ac;
+            --idr-coral: #f56565;
+        }
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f0f4f8;
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            background: #fff;
+            padding: 40px;
+            border-radius: 24px;
+            width: 350px;
+            box-shadow: 0 20px 40px rgba(0,0,0,.1);
+            text-align: center;
+        }
+        .logo-text {
+            font-size: 28px;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+        .logo-teal {
+            color: var(--idr-teal);
+            border-bottom: 3px solid var(--idr-teal);
+        }
+        .logo-coral {
+            color: var(--idr-coral);
+        }
+        input {
+            width: 100%;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 12px;
+            border: 1px solid #d1d5db;
+            box-sizing: border-box;
+            font-size: 16px;
+            outline: none;
+        }
+        button {
+            margin-top: 25px;
+            width: 100%;
+            padding: 15px;
+            border-radius: 30px;
+            border: none;
+            background: var(--idr-teal);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #319795;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        #errMsg {
+            color: var(--idr-coral);
+            font-size: 14px;
+            margin-top: 15px;
+            display: none;
+            font-weight: 600;
+        }
     </style>
 </head>
+
 <body>
-    <div class="card">
-        <div class="logo-text"><span class="logo-teal">IDR</span> <span class="logo-coral">Solutions</span></div>
-        <p style="color:#64748b; font-size: 14px;">Enter your tracking PIN to continue</p>
-        <input type="password" id="passInput" placeholder="Password / PIN">
-        <button id="loginBtn" onclick="handleLogin()">Login to Dashboard</button>
-        <div id="errMsg">Incorrect PIN. Please try again!</div>
+
+<div class="card">
+    <div class="logo-text">
+        <span class="logo-teal">IDR</span>
+        <span class="logo-coral">Solutions</span>
     </div>
 
-    <script>
-        // ⚠️ Apna Naya Web App URL yahan paste karein
-        const API_URL = "https://script.google.com/macros/s/AKfycbwu8aY5XoT2IEkMU-j_mbJ6bvPFWyCnehEjvUp-LzULdT-odz-Ii3xrF9htVIHjfZ9EFA/exec"; 
+    <p style="color:#64748b; font-size:14px;">
+        Enter your tracking PIN to continue
+    </p>
 
-        async function handleLogin() {
-            const p = document.getElementById("passInput").value.trim();
-            const btn = document.getElementById("loginBtn");
-            const err = document.getElementById("errMsg");
+    <input
+        type="password"
+        id="passInput"
+        placeholder="Password / PIN"
+        autocomplete="off"
+    >
 
-            if(!p) return alert("Please enter PIN");
-            localStorage.clear(); 
+    <button id="loginBtn" onclick="handleLogin()">
+        Login to Dashboard
+    </button>
 
-            btn.disabled = true; btn.innerText = "Verifying..."; err.style.display = "none";
+    <div id="errMsg">Incorrect PIN. Please try again!</div>
+</div>
 
-            try {
-                const res = await fetch(`${API_URL}?pin=${encodeURIComponent(p)}`);
-                const data = await res.json();
+<script>
+    // 🔒 Google Apps Script API
+    const API_URL = "https://script.google.com/macros/s/AKfycbwu8aY5XoT2IEkMU-j_mbJ6bvPFWyCnehEjvUp-LzULdT-odz-Ii3xrF9htVIHjfZ9EFA/exec";
 
-                if (data && data.length > 0) {
-                    // Check logic for Admin (Row check by API handled name)
-                    const userRow = data.find(r => r[19].toString().trim() === p);
-                    const pickupName = userRow[2]; 
+    async function handleLogin() {
+        const input = document.getElementById("passInput");
+        const btn = document.getElementById("loginBtn");
+        const err = document.getElementById("errMsg");
 
-                    if (pickupName === "IDRSOLUTIONS Franchise") {
-                        localStorage.setItem("role", "admin");
-                    } else {
-                        localStorage.setItem("role", "client");
-                    }
-                    localStorage.setItem("pin", p);
-                    location.href = (pickupName === "IDRSOLUTIONS Franchise") ? "admin.html" : "client.html";
-                } else {
-                    err.style.display = "block";
-                    btn.disabled = false; btn.innerText = "Login to Dashboard";
-                }
-            } catch (e) {
-                alert("Server Error"); btn.disabled = false; btn.innerText = "Login to Dashboard";
-            }
+        const pin = input.value.trim();
+        if (!pin) {
+            alert("Please enter PIN");
+            return;
         }
-    </script>
+
+        // Reset state
+        err.style.display = "none";
+        btn.disabled = true;
+        btn.innerText = "Verifying...";
+        localStorage.clear();
+
+        try {
+            const res = await fetch(`${API_URL}?pin=${encodeURIComponent(pin)}`);
+            const data = await res.json();
+
+            if (!Array.isArray(data) || data.length === 0) {
+                throw new Error("Invalid response");
+            }
+
+            const userRow = data.find(r => r[19]?.toString().trim() === pin);
+
+            if (!userRow) {
+                throw new Error("PIN not found");
+            }
+
+            const pickupName = (userRow[2] || "").trim();
+
+            if (pickupName === "IDRSOLUTIONS Franchise") {
+                localStorage.setItem("role", "admin");
+                localStorage.setItem("pin", pin);
+                window.location.href = "./admin.html";
+            } else {
+                localStorage.setItem("role", "client");
+                localStorage.setItem("pin", pin);
+                window.location.href = "./client.html";
+            }
+
+        } catch (e) {
+            err.style.display = "block";
+            btn.disabled = false;
+            btn.innerText = "Login to Dashboard";
+        }
+    }
+</script>
+
 </body>
 </html>
