@@ -97,6 +97,7 @@
         id="passInput"
         placeholder="Password / PIN"
         autocomplete="off"
+        onkeypress="if(event.key === 'Enter') handleLogin()"
     >
 
     <button id="loginBtn" onclick="handleLogin()">
@@ -107,7 +108,7 @@
 </div>
 
 <script>
-    // 🔒 Google Apps Script API
+    // 🔒 Google Apps Script API URL
     const API_URL = "https://script.google.com/macros/s/AKfycbwu8aY5XoT2IEkMU-j_mbJ6bvPFWyCnehEjvUp-LzULdT-odz-Ii3xrF9htVIHjfZ9EFA/exec";
 
     async function handleLogin() {
@@ -121,13 +122,14 @@
             return;
         }
 
-        // Reset state
+        // Reset UI state for verification
         err.style.display = "none";
         btn.disabled = true;
         btn.innerText = "Verifying...";
         localStorage.clear();
 
         try {
+            // Data fetch from Apps Script using PIN
             const res = await fetch(`${API_URL}?pin=${encodeURIComponent(pin)}`);
             const data = await res.json();
 
@@ -135,6 +137,7 @@
                 throw new Error("Invalid response");
             }
 
+            // PIN match check (Column T / Index 19)
             const userRow = data.find(r => r[19]?.toString().trim() === pin);
 
             if (!userRow) {
@@ -143,17 +146,21 @@
 
             const pickupName = (userRow[2] || "").trim();
 
+            // Role-based redirection logic
             if (pickupName === "IDRSOLUTIONS Franchise") {
+                // Admin login redirection
                 localStorage.setItem("role", "admin");
                 localStorage.setItem("pin", pin);
                 window.location.href = "./admin.html";
             } else {
+                // Client login redirection
                 localStorage.setItem("role", "client");
                 localStorage.setItem("pin", pin);
                 window.location.href = "./client.html";
             }
 
         } catch (e) {
+            console.error("Login Error:", e);
             err.style.display = "block";
             btn.disabled = false;
             btn.innerText = "Login to Dashboard";
