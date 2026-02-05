@@ -10,15 +10,7 @@ const GROUP_MAP = {
     "RETURNING_TO_ORIGIN": "RTO"
 };
 
-const ALL_STATUS_BUTTONS = [
-    "Pending Pickup",
-    "OUT FOR DELIVERY",
-    "DELIVERED",
-    "RTO",
-    "LOST",
-    "CANCELLED",
-    "SHIPPED"
-];
+const ALL_STATUS_BUTTONS = ["Pending Pickup", "OUT FOR DELIVERY", "DELIVERED", "RTO", "LOST", "CANCELLED", "SHIPPED"];
 
 let ALL_DATA = [];
 let VIEW_DATA = [];
@@ -102,9 +94,7 @@ window.toggleSort = function () {
     isNewestFirst = !isNewestFirst;
     const btn = document.getElementById("sortBtn");
     if (btn) {
-        btn.innerText = isNewestFirst
-            ? "Sort: Newest First ⇅"
-            : "Sort: Oldest First ⇅";
+        btn.innerText = isNewestFirst ? "New to Old ⇅" : "Old to New ⇅";
     }
     sortData();
     applyFilters();
@@ -117,15 +107,21 @@ function sortData() {
             const [dd, mm, yy] = d.split("/");
             return parseInt(`${yy}${mm.padStart(2, "0")}${dd.padStart(2, "0")}`);
         };
-        return isNewestFirst
-            ? toNum(b.delDate) - toNum(a.delDate)
-            : toNum(a.delDate) - toNum(b.delDate);
+        let valA = toNum(a.delDate);
+        let valB = toNum(b.delDate);
+        return isNewestFirst ? (valB - valA) : (valA - valB);
     });
 }
 
 // ---------------- FILTER ----------------
 function applyFilters() {
     const q = document.getElementById("search")?.value.toLowerCase() || "";
+
+    // ✅ SORT BUTTON VISIBILITY: Only show when DELIVERED status is active
+    const sortBtn = document.getElementById("sortBtn");
+    if (sortBtn) {
+        sortBtn.style.display = (F_STATUS.toUpperCase() === "DELIVERED") ? "block" : "none";
+    }
 
     VIEW_DATA = ALL_DATA.filter(r => {
         const mStatus = F_STATUS === "ALL" || r.displayGroup.toUpperCase() === F_STATUS.toUpperCase();
@@ -151,19 +147,39 @@ function render() {
         return;
     }
 
-    list.innerHTML = VIEW_DATA.map(r => {
-        const link = `https://www.delhivery.com/track-v2/package/${r.awb}`;
-        const dateInfo = (r.displayGroup === "DELIVERED" || r.displayGroup === "RTO") ? `📅 ${r.delDate}` : "";
+    let html = '';
+    VIEW_DATA.forEach(r => {
+        const sClass = r.status;
+        const trackingLink = `https://www.delhivery.com/track-v2/package/${r.awb}`;
+        const rightSideDate = (r.displayGroup === "DELIVERED" || r.displayGroup === "RTO") ? `📅 ${r.delDate}` : "";
+        const waLink = `https://api.whatsapp.com/send?phone=91${r.phone}&text=${encodeURIComponent("IDR Solutions Tracking:\nAWB: " + r.awb + "\nStatus: " + r.displayGroup + "\nLink: " + trackingLink)}`;
+        const smsLink = `sms:+91${r.phone}?body=${encodeURIComponent("IDR Solutions: Shipment AWB " + r.awb + " is " + r.displayGroup + ". Track: " + trackingLink)}`;
 
-        return `
-        <div class="shipment-card status-${r.status}">
-            <div><strong>AWB ${r.awb}</strong> (${r.payment})</div>
-            <div>${r.consignee} | ${r.city}</div>
-            <div>${r.displayGroup} ${dateInfo}</div>
-            <div>₹${r.cod.toFixed(0)}</div>
-            <a href="${link}" target="_blank">Track</a>
-        </div>`;
-    }).join("");
+        html += `
+            <div class="shipment-card status-${sClass}" style="background:#fff; margin-bottom:15px; padding:15px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-weight:900;">AWB ${r.awb}</div>
+                    <span style="font-size:10px; padding:2px 6px; background:#f1f5f9; border-radius:4px; font-weight:800;">${r.payment}</span>
+                </div>
+                <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <div style="font-weight:700; color:#1e293b;">${r.consignee}</div>
+                        <div style="font-size:12px; color:#64748b;">${r.city} | <span style="color:#38b2ac;">Pickup Date: ${r.date}</span></div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700; font-size:13px; color:${r.displayGroup === 'RTO' ? '#f56565' : '#38b2ac'}">${r.displayGroup}</div>
+                        <div style="font-size:11px; color:#64748b; margin-top:2px;">${rightSideDate}</div>
+                    </div>
+                </div>
+                <div style="margin-top:10px; font-weight:800; color:#38b2ac;">₹${r.cod.toFixed(0)}</div>
+                <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                    <a href="${trackingLink}" target="_blank" style="text-align:center; padding:8px; background:#38b2ac; color:#fff; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">Track</a>
+                    <a href="${waLink}" target="_blank" style="text-align:center; padding:8px; background:#25D366; color:#fff; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">WhatsApp</a>
+                    <a href="${smsLink}" style="text-align:center; padding:8px; background:#add8e6; color:#000; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700;">SMS</a>
+                </div>
+            </div>`;
+    });
+    list.innerHTML = html;
 }
 
 // ---------------- HELPERS ----------------
